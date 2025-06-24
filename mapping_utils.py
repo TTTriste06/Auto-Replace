@@ -24,7 +24,7 @@ def clean_mapping_headers(mapping_df):
     # ✅ 仅保留这些列
     return mapping_df[required_headers[:mapping_df.shape[1]]]
 
-def apply_mapping_and_merge(df, mapping_df, verbose=True):
+def apply_mapping_and_merge(df, mapping_df, name_col, verbose=True):
     """
     按品名字段替换主料号（新旧料号映射）
     对 df 中的品名列进行逐行检查：
@@ -32,7 +32,6 @@ def apply_mapping_and_merge(df, mapping_df, verbose=True):
         则将其替换为该新品名。
     返回修改后的 DataFrame 和所有成功替换的新品名集合。
     """
-    name_col = df.columns[0]
     df = df.copy()
     df[name_col] = df[name_col].astype(str).str.strip()
     mapping_df = mapping_df.copy()
@@ -56,11 +55,10 @@ def apply_mapping_and_merge(df, mapping_df, verbose=True):
 
     return df
 
-def apply_extended_substitute_mapping(df, mapping_df, verbose=True):
+def apply_extended_substitute_mapping(df, mapping_df, name_col, verbose=True):
     """
     替代料号品名替换（仅品名字段替换，无聚合合并）
     """
-    name_col = df.columns[0]
     df = df.copy()
     df[name_col] = df[name_col].astype(str).str.strip().str.replace("\n", "").str.replace("\r", "")
 
