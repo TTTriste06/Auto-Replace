@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 # GitHub 配置
 GITHUB_TOKEN_KEY = "GITHUB_TOKEN"  # secrets.toml 中的密钥名
-REPO_NAME = "TTTriste06/Replacement"
+REPO_NAME = "TTTriste06/Auto-Replace"
 BRANCH = "main"
 
 # 辅助文件标准名（可扩展）
