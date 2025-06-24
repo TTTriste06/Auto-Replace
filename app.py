@@ -9,6 +9,7 @@ from mapping_utils import (
     apply_extended_substitute_mapping
 )
 from excel_utils import adjust_column_width
+from github_utils import load_file_with_github_fallback
 
 
 st.set_page_config("🔁 品名替换合并工具", layout="wide")
