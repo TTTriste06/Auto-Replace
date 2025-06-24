@@ -11,12 +11,35 @@ from mapping_utils import (
 from excel_utils import adjust_column_width
 from github_utils import load_file_with_github_fallback
 
-
 st.set_page_config("🔁 品名替换合并工具", layout="wide")
 st.title("📊 多文件品名替换与合并工具")
 
 uploaded_files = st.file_uploader("📂 上传 Excel 数据文件（多个）", type="xlsx", accept_multiple_files=True)
 mapping_file = st.file_uploader("📘 上传新旧料号对照表", type="xlsx")
+
+file_options = []
+file_settings = {}
+
+if uploaded_files:
+    for file in uploaded_files:
+        df = pd.read_excel(file)
+        df.columns = df.columns.astype(str).str.strip()
+        if df.empty:
+            st.warning(f"⚠️ 文件 `{file.name}` 内容为空，跳过")
+            continue
+
+        st.subheader(f"📄 文件：{file.name}")
+        name_col = st.selectbox(f"请选择品名列：", options=df.columns.tolist(), key=f"name_{file.name}")
+        value_cols = st.multiselect(f"请选择要合并的数值列：", options=df.columns.tolist(), key=f"val_{file.name}")
+
+        if name_col and value_cols:
+            file_options.append(file)
+            file_settings[file.name] = {
+                "df": df,
+                "name_col": name_col,
+                "value_cols": value_cols
+            }
+
 start = st.button("🚀 开始处理")
 
 def extract_sub_mapping(df, n):
@@ -38,8 +61,8 @@ def convert_df(df):
     return output
 
 if start:
-    if not uploaded_files or mapping_file is None:
-        st.warning("请上传需要处理的 Excel 文件和新旧料号对照表")
+    if not file_options or mapping_file is None:
+        st.warning("请上传文件并选择列后再开始处理")
         st.stop()
 
     try:
@@ -64,21 +87,11 @@ if start:
 
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        for file in uploaded_files:
+        for file in file_options:
             try:
-                df = pd.read_excel(file)
-                df.columns = df.columns.astype(str).str.strip()
-                if df.empty:
-                    st.warning(f"⚠️ 文件 `{file.name}` 内容为空，跳过")
-                    continue
-
-                st.subheader(f"📄 文件：{file.name}")
-                name_col = st.selectbox(f"请选择品名列：", options=df.columns.tolist(), key=f"name_{file.name}")
-                value_cols = st.multiselect(f"请选择要合并的数值列：", options=df.columns.tolist(), key=f"val_{file.name}")
-
-                if not name_col or not value_cols:
-                    st.warning(f"❗ 文件 `{file.name}` 未选择品名列或数值列，跳过")
-                    continue
+                df = file_settings[file.name]["df"].copy()
+                name_col = file_settings[file.name]["name_col"]
+                value_cols = file_settings[file.name]["value_cols"]
 
                 df = apply_mapping_and_merge(df, mapping_new, name_col=name_col)
                 for mapping_sub in mapping_subs:
