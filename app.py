@@ -3,14 +3,14 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 
-from excel_utils import adjust_column_width
-from github_utils import load_file_with_github_fallback
 from mapping_utils import (
     clean_mapping_headers,
     apply_mapping_and_merge,
     apply_extended_substitute_mapping,
     load_file_with_github_fallback
 )
+from excel_utils import adjust_column_width
+
 
 st.set_page_config("🔁 品名替换合并工具", layout="wide")
 st.title("📊 多文件品名替换与合并工具")
@@ -18,6 +18,24 @@ st.title("📊 多文件品名替换与合并工具")
 uploaded_files = st.file_uploader("📂 上传 Excel 数据文件（多个）", type="xlsx", accept_multiple_files=True)
 mapping_file = st.file_uploader("📘 上传新旧料号对照表", type="xlsx")
 start = st.button("🚀 开始处理")
+
+def extract_sub_mapping(df, n):
+    sub = df[[
+        "新晶圆品名", "新规格", "新品名",
+        f"替代晶圆{n}", f"替代规格{n}", f"替代品名{n}"
+    ]]
+    sub = sub[
+        ~df[f"替代品名{n}"].astype(str).str.strip().replace("nan", "").eq("")
+    ].copy()
+    sub.columns = ["新晶圆品名", "新规格", "新品名", "替代晶圆", "替代规格", "替代品名"]
+    return sub
+
+def convert_df(df):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return output
 
 if start:
     if not uploaded_files or mapping_file is None:
@@ -28,10 +46,9 @@ if start:
         mapping_df = load_file_with_github_fallback("mapping", mapping_file)
         mapping_df = clean_mapping_headers(mapping_df)
 
-        # 主替换表
-        mapping_new = mapping_df[
-            ["旧晶圆品名", "旧规格", "旧品名", "新晶圆品名", "新规格", "新品名"]
-        ]
+        mapping_new = mapping_df[[
+            "旧晶圆品名", "旧规格", "旧品名", "新晶圆品名", "新规格", "新品名"
+        ]]
         mapping_new = mapping_new[
             ~mapping_new["新品名"].astype(str).str.strip().replace("nan", "").eq("")
         ]
@@ -39,21 +56,7 @@ if start:
             ~mapping_new["旧品名"].astype(str).str.strip().replace("nan", "").eq("")
         ]
 
-        # 替代料号表（统一列名）
-        def extract_sub_mapping(df, n):
-            sub = df[
-                ["新晶圆品名", "新规格", "新品名", f"替代晶圆{n}", f"替代规格{n}", f"替代品名{n}"]
-            ]
-            sub = sub[
-                ~df[f"替代品名{n}"].astype(str).str.strip().replace("nan", "").eq("")
-            ].copy()
-            sub.columns = ["新晶圆品名", "新规格", "新品名", "替代晶圆", "替代规格", "替代品名"]
-            return sub
-
-        mapping_sub1 = extract_sub_mapping(mapping_df, 1)
-        mapping_sub2 = extract_sub_mapping(mapping_df, 2)
-        mapping_sub3 = extract_sub_mapping(mapping_df, 3)
-        mapping_sub4 = extract_sub_mapping(mapping_df, 4)
+        mapping_subs = [extract_sub_mapping(mapping_df, i) for i in range(1, 5)]
 
     except Exception as e:
         st.error(f"❌ 映射表加载失败：{e}")
@@ -77,9 +80,8 @@ if start:
                     st.warning(f"❗ 文件 `{file.name}` 未选择品名列或数值列，跳过")
                     continue
 
-                # 替换逻辑
                 df = apply_mapping_and_merge(df, mapping_new, name_col=name_col)
-                for mapping_sub in [mapping_sub1, mapping_sub2, mapping_sub3, mapping_sub4]:
+                for mapping_sub in mapping_subs:
                     df = apply_extended_substitute_mapping(df, mapping_sub, name_col=name_col)
 
                 for col in value_cols:
