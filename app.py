@@ -6,8 +6,7 @@ from datetime import datetime
 from mapping_utils import (
     clean_mapping_headers,
     apply_mapping_and_merge,
-    apply_extended_substitute_mapping,
-    load_file_with_github_fallback
+    apply_extended_substitute_mapping
 )
 from excel_utils import adjust_column_width
 
